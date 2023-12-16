@@ -1,0 +1,42 @@
+"0","```r
+# % de NA par variable
+variable_details <- function(data) {
+    n_observations <- nrow(data)
+    df <- data.frame(
+        Type = sapply(data, class),
+        Missing_Percent = sapply(data, function(x) sum(is.na(x)) / n_observations * 100)
+    )
+}
+
+
+# Exploration des données
+summary(data) # Affichage du résumé avec les noms de lignes
+```"
+"1","   Domaine           Specialite         Expertise          Complexite           Tps_Tot         Tps_Xplr        Tps_Xplo    
+ Length:819         Length:819         Length:819         Length:819         Min.   :4.593   Min.   :2.634   Min.   :3.176  
+ Class :character   Class :character   Class :character   Class :character   1st Qu.:5.274   1st Qu.:3.918   1st Qu.:4.639  
+ Mode  :character   Mode  :character   Mode  :character   Mode  :character   Median :5.487   Median :4.380   Median :4.960  
+                                                                             Mean   :5.460   Mean   :4.362   Mean   :4.911  
+                                                                             3rd Qu.:5.675   3rd Qu.:4.799   3rd Qu.:5.238  
+                                                                             Max.   :6.550   Max.   :5.678   Max.   :5.869  
+                                                                             NA's   :13      NA's   :14      NA's   :14     
+     Tps_RI           SW2a             SW2b              Docs            TG_Tot              FOFG            FOFD       
+ Min.   :3.602   Min.   : 0.000   Min.   :-1.0000   Min.   : 1.000   Min.   :0.000000   Min.   :1.000   Min.   : 1.000  
+ 1st Qu.:4.821   1st Qu.: 0.000   1st Qu.: 0.0000   1st Qu.: 1.000   1st Qu.:0.002439   1st Qu.:2.000   1st Qu.: 2.000  
+ Median :5.121   Median : 1.000   Median : 0.0000   Median : 2.000   Median :0.012121   Median :3.000   Median : 3.000  
+ Mean   :5.078   Mean   : 2.119   Mean   : 0.6286   Mean   : 2.532   Mean   :0.029454   Mean   :3.201   Mean   : 3.567  
+ 3rd Qu.:5.367   3rd Qu.: 3.000   3rd Qu.: 1.0000   3rd Qu.: 3.125   3rd Qu.:0.027211   3rd Qu.:4.000   3rd Qu.: 5.000  
+ Max.   :6.044   Max.   :15.000   Max.   : 6.0000   Max.   :11.000   Max.   :0.798085   Max.   :9.000   Max.   :10.000  
+ NA's   :15      NA's   :13       NA's   :14        NA's   :11       NA's   :14         NA's   :228     NA's   :228     
+      SAE          Eleve              Etude           ID_Participant 
+ Min.   :19.0   Length:819         Length:819         Min.   :  1.0  
+ 1st Qu.:38.0   Class :character   Class :character   1st Qu.: 69.0  
+ Median :44.0   Mode  :character   Mode  :character   Median :162.0  
+ Mean   :42.5                                         Mean   :191.9  
+ 3rd Qu.:47.0                                         3rd Qu.:299.5  
+ Max.   :52.0                                         Max.   :504.0  
+                                                                     
+"
+"0","```r
+print(variable_details(data), row.names = FALSE) # Affichage du résumé sans les noms de lignes
+```"

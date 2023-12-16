@@ -1,0 +1,981 @@
+---
+title: "Réduction de dimensionnalité et Clustering"
+subtitile: UE 4
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(plotly)
+library(scatterplot3d)
+library(ggpubr)
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+library(xtable)
+library(Factoshiny)
+library(viridis)
+library(NbClust)
+library(cluster)
+library(dbscan)
+library(reshape2)
+library(tidyverse)
+```
+
+
+
+```{r theme personnel}
+# Thème personnel
+blue_theme <- function() {
+  theme(
+    # add border
+    panel.border = element_rect(colour = "blue", fill = NA, linetype = 2),
+    # color background
+    panel.background = element_rect(fill = "aliceblue"),
+    # modify grid
+    panel.grid.major.x = element_line(colour = "steelblue", linetype = 3, linewidth = 0.5),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y =  element_line(colour = "steelblue", linetype = 3, linewidth = 0.5),
+    panel.grid.minor.y = element_blank(),
+    # modify text, axis and colour
+    axis.text = element_text(colour = "steelblue", face = "italic"),
+    axis.title = element_text(colour = "steelblue"),
+    axis.ticks = element_line(colour = "steelblue"),
+    # text elements
+    plot.title = element_text(size = 16, face = 'bold', hjust = 0, vjust = 2, color="steelblue"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 9, hjust = 1),
+    # legend at the bottom
+    legend.position = "bottom"
+  )
+}
+
+```
+
+
+# Réduction de dimensionnalité
+## Projet 1
+
+```{r}
+data_I = iris
+str(data_I)
+head(data_I)
+```
+
+
+
+```{r}
+# Fonction de tabulation de certaines données
+variable_details <- function(data) {
+    n_observations <- nrow(data)
+    df <- data.frame(
+        Variable = names(data),
+        Type = sapply(data, class),
+        Missing_Percent = sapply(data, function(x) sum(is.na(x)) / n_observations * 100)
+    )
+  
+    # Calcul des statistiques uniquement pour les variables numériques
+    num_vars <- data[sapply(data, is.numeric)]
+    stats <- sapply(num_vars, function(x) {
+        c(
+            Mean = mean(x, na.rm = TRUE),
+            SD = sd(x, na.rm = TRUE),
+            Median = median(x, na.rm = TRUE),
+            Min = min(x, na.rm = TRUE),
+            Max = max(x, na.rm = TRUE)
+        )
+    })
+
+    # Ajouter les statistiques au tableau principal
+    stats_df <- as.data.frame(t(stats))
+    df <- merge(df, stats_df, by.x = "Variable", by.y = "row.names", all.x = TRUE)
+
+
+    return(df)
+}
+
+
+tableau1 <- variable_details(data_I)
+
+# Renommer les colonnes de tableau 2
+colnames(tableau1) <- c("Variables", "Type", "%_NA", "Moyenne", "Ecart-type", "Médiane", "Min", "Max")
+
+print(tableau1)
+
+```
+
+
+```{r}
+# Recherche des doublons
+doublons <- duplicated(data_I)
+
+# Affichage des lignes qui sont des doublons
+iris_doublons <- data_I[doublons, ]
+
+# Nombre de doublons
+nombre_doublons <- sum(doublons)
+
+# Affichage du nombre de doublons
+print(paste("Nombre de doublons:", nombre_doublons))
+
+# Affichage des lignes doublons (si nécessaire)
+print(iris_doublons)
+
+```
+
+
+```{r}
+# iris nettoyé
+iris_clean <- data_I[-143, ]
+```
+
+
+```{r}
+#décharge de la mémoire
+rm(tableau1, latex_code, iris_doublons, doublons, nombre_doublons)
+```
+
+
+
+```{r fig.height=6, fig.width = 6}
+# Assigner des couleurs selon l'espèce
+colors <- c("#999999", "#E69F00", "#56B4E9")
+colors <- colors[as.numeric(iris_clean$Species)]
+
+# Créer le scatterplot 3d avec données non standardisées
+scatterplot3d(iris_clean[, c("Sepal.Length", "Petal.Length", "Sepal.Width")], 
+                    pch=16,  color=colors)
+```
+
+
+```{r fig.height=6, fig.width = 6}
+# scatterplot 3d sur données centrées-réduites
+iris_scaled <- scale(iris_clean[, c("Sepal.Length", "Petal.Length", "Sepal.Width")])
+scatterplot3d(iris_scaled, pch = 16, color=colors)
+
+```
+
+```{r fig.height=7}
+# Réaliser l'ACP sur iris sans standardisation des données
+res.acp1 <- PCA(iris_clean, quali.sup = "Species", scale.unit=FALSE, graph=FALSE)
+
+# Afficher les individus sur les deux premières composantes
+ACP1 <- fviz_pca_ind(res.acp1, axe = 1:2, 
+             geom.ind = "point",
+             col.ind = iris_clean$Species,
+             title = "",
+             subtitle = "ACP non standardisée", 
+             legend.title = "Espèces",
+             palette = "jco") + 
+  blue_theme() 
+ACP1
+
+summary.PCA(res.acp1) # résumé de l'ACP 
+
+
+```
+
+
+
+```{r fig.height=7}
+# Réaliser l'ACP sur iris avec standardisation des données
+res.acp1_std <- PCA(iris_clean, quali.sup = "Species", scale.unit=TRUE, graph=FALSE)
+
+# Afficher les individus sur les deux premières composantes
+ACP2 <- fviz_pca_ind(res.acp1_std, axe = 1:2, 
+             geom.ind = "point",
+             col.ind = iris_clean$Species,
+             title = "",
+             subtitle = "ACP standardisée",
+             legend.title = "Espèces",
+             palette = "jco") + 
+  blue_theme() 
+ACP2
+
+summary.PCA(res.acp1_std) 
+
+```
+
+```{r fig.height=8}
+grid.arrange(ACP1, ACP2, ncol = 2)
+
+```
+
+
+```{r fig.height = 6}
+# construction de la matrice des corrélations
+cor_matrix <- cor(iris_clean[, -5])  # On exclut la 5ème colonne du df (colonne des espèces, variable catégorielle)
+
+# construction du corréloghramme issu de la matrice des corrélations
+
+corrplot(cor_matrix, method = "circle", sig.level = 0.05, insig = "blank", bg = "white",
+         addCoef.col = "black", tl.srt = 45, number.cex = 0.9, type = "upper", tl.cex = 0.8)
+
+```
+```{r}
+## Alternative case pleine ##
+# Mise en forme longue de la matrice de corrélation pour ggplot2
+melted_cor_matrix <- melt(cor_matrix)
+
+# Création du corréllogramme avec ggplot2
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() + # Utilisation de tuiles pour représenter les valeurs de corrélation
+  geom_text(aes(label = sprintf("%.2f", value)), vjust = 1, color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Corrélation") +
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        axis.title = element_blank()) 
+
+```
+
+```{r fig.height=7}
+fviz_pca_var(res.acp1_std, col.var = "black", repel = TRUE, title = "") +
+  blue_theme()
+
+```
+
+Le cercle des corrélations présenté inclut les quatre variables numériques du jeu de données Iris. Il représente les corrélations des variables avec les deux premières composantes principales après une analyse en composantes principales (ACP). D'après le cercle des corrélations, les variables Petal.Length et Petal.Width semblent les plus fortement corrélées (positivement), comme en témoignent leurs vecteurs qui pointent dans des directions similaires et qui sont très proches l'un de l'autre sur le cercle. Cela indique que ces deux mesures sont fortement liées et varient ensemble dans le jeu de données Iris. Cette forte corrélation positive avait déjà été soulignée dans la Figure 3, avec une corrélation significative calculée à 0.96. Dans la même logique, Sepal.width montre une forte corrélation positive (proximité dans le plan des vecteurs pointant dans la même direction) avec Petal.Length et Petal.Width, comme précédemment illustré dans la Figure 3 (corrélation calculée de 0.87 et 0.82 respectivement). A contrario, les vecteurs représentant Sepal.width et Sepal.length sont quasiment orthogonaux, soulignant la corrélation presque nulle entre les deux variables comme déjà calculée lors du corrélogramme.
+
+
+
+
+```{r, fig.height=7}
+biplot1 <- fviz_pca_biplot(res.acp1_std, 
+                # colorer (fill) les individu par groupe
+                geom.ind = "point",
+                pointshape = 21,
+                pointsize = 2.5,
+                fill.ind = iris_clean$Species,
+                label = "var",
+                # colorer les variables par groupe
+                col.var = factor(c("sepal", "sepal", "petal", "petal")),
+                
+                legend.title = list(fill = "Espèces", color = "Variables (type)"),
+                repel = TRUE,
+                title = "" # Éviter le surdimensionnement des étiquettes
+             ) +
+  fill_palette(c("#999999", "#E69F00", "#56B4E9")) +      # remplissage des individus
+  color_palette("npg") + 
+  blue_theme()
+
+biplot1
+
+```
+```{r, fig.height=7}
+fviz_pca_biplot(res.acp1_std, 
+                col.ind = iris_clean$Species, palette = c("#999999", "#E69F00", "#56B4E9"), 
+                label = "var",
+                col.var = "black", repel = TRUE,
+                legend.title = "Espèces",
+                title = "") +
+  blue_theme()
+```
+
+La part de variance représentée dans ce plan (standardisé) est de 95, 9%.
+
+
+```{r}
+
+#Scree plot
+plot1 <- fviz_screeplot(res.acp1_std, choice ="eigenvalue", addlabels = TRUE,
+                     x="Composantes",
+                     y="Valeur propre",
+                    title="")
+plot1
+
+plot2 <- fviz_screeplot(res.acp1_std, choice ="variance", addlabels = TRUE,
+                     x="Composantes",
+                     y="Pourcentage de la variance expliquée",
+                     title="")
+plot2
+
+ggarrange(plot1, plot2)
+
+
+
+#Scree plot et détermination du nombre de dimensions
+fviz_screeplot(res.acp1_std,
+               addlabels = TRUE, 
+               choice ="variance",
+               main = "",
+               ylab = "% de variance expliquée\n",
+               linecolor = "red") + 
+  geom_hline(yintercept = 1/ncol(iris_clean[, -5])*100, linetype = "dashed", color = "red") # visualisation de la moyenne des variances (25%)
+
+
+## Modèle de bâtons brisés ##
+# Fonction pour calculer les longueurs des bâtons brisés
+broken_stick <- function(p) {
+  sapply(1:p, function(k) sum(1/(k:p))/p) 
+}
+
+# Calcul des longueurs des bâtons brisés
+p <- ncol(iris_clean[,-5])
+batons_brises <- round(broken_stick(p)*100, 2)
+
+# Construction de la table synthétique
+table_def <- cbind (res.acp1_std$eig, batons_brises)
+colnames(table_def) <- c("Eigenvalue (valeur propre)", "% de variance exp.", "Variance cumulée", "Bâtons brisés")
+table_def
+
+```
+Plusieurs méthodes existent pour déterminer le nombre de dimensions : la méthode du coude (rupture dans la pente de la variance sur scree plot) ; la méthode du baton brisé (en considérant l’inertie totale comme un bâton de longueur 1, il est possible de "briser" ce bâton aléatoirement en p morceaux, où p est le nombre total de variables ou composantes principales initiales) ou de la moyenne (consistant à calculer une distribution homogène de la variance, telle que l'inertie divisée par le nombre de composante, i.e. ici 1/4 = 0.25 ou 25%, et de ne conserver que les dimension avec une interie supérieure. Rq : appliquée à des données centrée-réduite comme les notres, cette technique revient à ne sélectionner que les composante à l’inertie supérieure à 1 (critère de Kaiser : ne conserver que les valeurs propres supérieures à leur moyenne). 
+
+<br>
+
+Globalement, le pourcentage de variance expliquée par une composante est liée à l’importance de sa valeur propre, i.e. que plus l’eigenvalue (ou inertie) est importante, et plus la dimension expliquera de variance des observation
+
+
+```{r}
+# création de la table de saturation
+saturations <- round(res.acp1_std$var$cor, 2)
+saturations
+
+```
+La variable qui présente la saturation la plus forte sur la CP1 est Petal.Length (0.99).
+
+
+```{r}
+# Transformer les loadings en un format long 
+saturations_long <- as.data.frame(saturations) %>% 
+  rownames_to_column(var = "Variable") %>%
+  pivot_longer(cols = -Variable, names_to = "CP", values_to = "Saturation")
+
+# Trouver la variable avec la saturation la plus forte pour chaque CP
+max_saturations <- saturations_long %>%
+  group_by(CP) %>%
+  slice_max(order_by = abs(Saturation), n = 1) %>%
+  ungroup()
+
+# Afficher le résultat
+print(max_saturations)
+
+```
+
+
+Sur le cercle des corrélation, la saturation élevée de Petal.Length (0.99) se traduit par un vecteur (flèche) qui se confond presque avec l'axe 1 et dont la taille est proche du cercle unitaire (corrélation parfaite de 1). Le signe de la saturation renseigne également sur la direction des flèves :  les saturations positives sur l'axe 1 sont orientées vers la droite sur l'axe 1 et les saturations positives sur l'axe 2 sont orientées vers le haut sur l'axe 2 (inversement pour les saturations négatives). En général, une variable avec un loading élevé aura également une contribution significative, car elle influence fortement la composante principale concernée.  
+
+
+Les saturations sont éclairantes sur la nature des dimensions de l'ACP, mais seules les variables bien projetées peuvent être correctement analysée par leur corrélations.Graphiqement, plus une variable possède une qualité de représentation élevée dans l’ACP, plus sa flèche est longue. 
+
+```{r}
+# Qualité de représentation des variables sur les axes retenus de l'ACP
+fviz_cos2(res.acp1_std, choice = "var", axes = 1:2) +
+  labs(x="", y="Somme des cosinus carrés sur les 2 axes retenus",
+       title ="")
+```
+
+
+
+
+
+```{r, fig.height = 9}
+# Premier plan factoriel pour les variables avec factoextra
+s1 <- fviz_pca_var(res.acp1_std, 
+             # Variables
+             col.var="cos2", 
+             gradient.cols = c("#313695", "#ffffbf", "#a50026"),
+             repel = TRUE,
+             legend.title = list(color = "Cos2"),
+             show.legend = FALSE,
+             title = "Plan factoriel pour les variables")
+s1
+
+s2 <- fviz_pca_var(res.acp1_std, 
+             # Variables
+             col.var="contrib", 
+             gradient.cols = c("#313695", "#ffffbf", "#a50026"),
+             repel = TRUE,
+             legend.title = list(color = "Contribution"),
+             show.legend = FALSE,
+             title = "Plan factoriel pour les variables") 
+s2
+
+ggarrange(s1, s2)
+
+round(res.acp1_std$var$cos2, 2)
+```
+### Qualité de la représentation
+Les cosinus carrés des variables (Cos2) permettent de mesurer les qualités de représentation des variables sur un axe, i.e. la qualité de sa projection. CO2 indique la proportion de la variance de l'élément (individu ou variable) expliquée par cet axe. C'est une métrique d'importance puisque, seules les variables bien projetées peuvent être correctement interprétées. Ces cos2 permettent de repérer le ou les axes qui concourent le plus à donner un sens à la variable. Ils sont en fait les coordonnées des variables mises au carré. La somme des cosinus carrés d’une variable sur tous les axes de l’ACP est égale à 1. La qualité de représentation d’une variable dans notre plan factoriel (ici les deux premiers axes représentant les deux premières dimensions) est simplement la somme des cosinus carrés d’une variable sur les axes retenus. Par exemple, pour la variable Sepal.Length, la qualité de représentation de la variable sur le premier axe est égale : 0.80. Pour cette même variable, la qualité de la représentation sur les deux premiers axes retenus est égale à : 0.80 + 0.13 = 0.93 (93%).
+
+### Principale différence entre les métriques du cos2 et de la contribution
+Si le cos2 illustrent la qualité de la représentation, i.e. l'importance des axes à expliquer la variables, à "l'inverse", les contributions des variables permettent de repérer celles qui participent le plus à la formation d’un axe. La contribution mesure donc l'importance ou l'influence d'un individu ou d'une variable sur la formation d'un axe donné. Une contribution élevée signifie que l'élément a un fort impact sur la position et l'orientation de l'axe, tandis qu'une contribution faible signifie que son impact est limité. Elles s’obtiennent en divisant les cosinus carrés par la valeur propre de l’axe multiplié par 100. La somme des contributions des variables pour un axe donné est égale à 100
+
+
+```{r}
+fviz_pca_ind(res.acp1_std, label="none",
+             # individus
+             col.ind = "cos2",
+             gradient.cols = c("#313695", "#ffffbf", "#a50026"),  # Utilisation de la palette ionfern
+             repel = TRUE,
+             title = "ACP. Individus",
+             legend.title = list(color = "Cos2")
+             
+) +
+  theme_grey()
+
+```
+
+```{r}
+# création de la table des contributions
+contributions_ind <- round(res.acp1_std$ind$contrib[, 1:2], 2)
+contributions_ind
+
+```
+
+
+### Que représente la contribution pour les individus
+La contribution d'un individu aux axes (ici les deux premiers axes) représente l'importance relative de cet individu dans la définition de la direction et de la variance de ces axes. Plus précisément, elle indique dans quelle mesure la position de cet individu sur un axe donné influence la variance capturée par cet axe. Si un individu a une contribution élevée à un axe, cela signifie qu'il est loin de l'origine dans la direction de cet axe, indiquant que ses caractéristiques jouent un rôle majeur dans la création de l'axe. Si un individu a une faible contribution, cela suggère qu'il est proche du centre de gravité des données sur cet axe et a donc moins d'influence sur la forme de l'axe. Cette information est utile pour identifier des outliers ou des individus particulièrement caractéristiques dans l'ensemble des données
+
+
+```{r}
+fviz_pca_ind(res.acp1_std, 
+                col.ind = iris_clean$Species, palette = c("#999999", "#E69F00", "#56B4E9"), 
+                addEllipses = TRUE, label = "var",
+                repel = TRUE,
+                legend.title = "Espèces")
+```
+
+### Distinction entre ellipses et classification par kmeans
+Les ellipses autour des groupes d'individus servent à représenter la dispersion ou la variabilité des individus au sein de chaque groupe. Ces ellipses sont souvent basées sur un certain niveau de confiance (par exemple, 95%) et représentent la région où se trouvent la plupart des individus du groupe. Elles donnent une indication visuelle de la dispersion des individus appartenant à chaque groupe. Les axes de l'ellipse montrent la direction principale de la variation au sein du groupe, et la taille de l'ellipse est proportionnelle à la variance du groupe. Ces ellipses ne sont pas des frontières strictes mais donnent une indication de la densité et de la dispersion des données.Le k-means est un algorithme de clustering qui partitionne les données en k clusters, où chaque observation appartient au cluster avec la moyenne la plus proche. Il ne prend pas en compte les directions de la variance ou la structure de corrélation entre les variables, contrairement à l'ACP qui est une méthode de réduction de dimensionnalité et non une méthode de clustering. Les clusters formés par k-means sont basés sur la proximité aux centres de clusters (les centroids), tandis que les ellipses dans l'ACP ne définissent pas de frontières fermées. Plus techniquement, les ellipses de l'ACP représentent la distribution des données en termes de variance et de covariance, ce qui n'est pas le cas pour le k-means, qui s'intéresse uniquement à la distance entre les points et les centroids.
+
+
+
+```{r, fig.height=7}
+# ACP avec une variable supplémentaire
+res.acp2_std <- PCA(iris_clean[, -5], quanti.sup = "Petal.Length", scale.unit=TRUE, graph=FALSE)
+
+
+biplot2 <- fviz_pca_biplot(res.acp2_std, 
+                # colorer (fill) les individu par groupe
+                geom.ind = "point",
+                pointshape = 21,
+                pointsize = 2.5,
+                fill.ind = iris_clean$Species,
+                label = "var",
+                legend.title = list(fill = "Espèces", color = "Variables (type)"),
+                repel = TRUE,
+                subtitle = "ACP avec Petal.Length en variable sup." # Éviter le surdimensionnement des étiquettes
+             ) +
+  fill_palette(c("#999999", "#E69F00", "#56B4E9")) +      # remplissage des individus
+  color_palette("npg") 
+
+biplot2
+
+
+biplot1b <- fviz_pca_biplot(res.acp1_std, 
+                # colorer (fill) les individu par groupe
+                geom.ind = "point",
+                pointshape = 21,
+                pointsize = 2.5,
+                fill.ind = iris_clean$Species,
+                label = "var",
+                legend.title = list(fill = "Espèces", color = "Variables (type)"),
+                repel = TRUE,
+                subtitle = "ACP sans Petal.Length en variable sup." # Éviter le surdimensionnement des étiquettes
+             ) +
+  fill_palette(c("#999999", "#E69F00", "#56B4E9")) +      # remplissage des individus
+  color_palette("npg")
+biplot1b
+
+ggarrange(biplot1b, biplot2)
+
+fviz_pca_biplot(res.acp2_std, 
+                # Individuals
+                geom.ind = "point",
+                fill.ind = iris_clean$Species,
+                pointshape = 21, pointsize = 2,
+                palette = c("#999999", "#E69F00", "#56B4E9"),
+                # Variables
+                col.var = "contrib",
+                gradient.cols = "RdYlBu",
+                
+                legend.title = list(fill = "Espèces", color = "Contribution",
+                                    alpha = "Contribution")
+                )
+
+
+
+```
+
+Considérer la longueur des pétales (Petal.Length) comme une variable supplémentaire modifie les liens à expliquer entre les variables et impacte la distribution de la variance expliquée entre les deux axes (dim1 passe de 73% à 64.8%, et dim2 de 22,9% à 30.4%). Cela disperse (étale) les variables sur l'axe 1 (plus grande amplitude de valeurs), et les "resserre" davantage sur l'axe 2.
+
+
+*Fonctionnement de l'agorythme K-means*
+Le fonctionnement de l'algorithme K-means peut être décrit en plusieurs étapes, mais il repose sur le principe d'une alternance entre deux phases principales : l'expectation et la maximisation.
+
+Étape 1: Initialisation
+Avant de commencer l'algorithme, on choisit K, le nombre de clusters. Ensuite, on initialise les positions des K centroïdes (les centres des clusters). Cette initialisation peut être faite de manière aléatoire ou en suivant une méthode plus sophistiquée.
+
+Étape 2: Expectation (ou Assignation)
+Dans cette phase, l'algorithme affecte chaque point de données au cluster dont le centroïde est le plus proche. Cela se fait généralement en calculant la distance entre chaque point de données et chaque centroïde.
+
+Étape 3: Maximisation (ou Mise à jour des Centroïdes)
+Après l'assignation des points à chaque cluster, l'étape de maximisation ajuste la position des centroïdes. Pour chaque cluster, le nouveau centroïde est alors calculé en prenant la moyenne de tous les points qui ont été attribués à ce cluster. Cela déplace le centroïde, vers la position centrale de tous les points du cluster.
+
+<br>
+<\br>
+
+Trajectoire des Centroïdes :
+Les étapes d'expectation et de maximisation sont répétées de manière itérative. À chaque cycle, les centroïdes se déplacent, les points sont réaffectés, et ainsi de suite. Au fil de ces itérations, les centroïdes se déplacent suivant un chemin qui les amène progressivement vers la position optimale. Au début, les mouvements peuvent être importants. Au fur et à mesure des itérations, les mouvements des centroïdes deviennent plus petits, car ils se rapprochent de la position qui minimise la distance totale.  
+
+
+```{r}
+# k-means clustering
+km.res2 <- kmeans(iris_clean[, -c(5)], centers=3) # retrait de la variable qualitatite/catégorielle
+
+# Visualisation dans le plan de l'ACP
+fviz_pca_ind(res.acp1_std, 
+                geom.ind = "point",
+                col.ind = as.factor(km.res2$cluster),
+                palette = c("#999999", "#E69F00", "#56B4E9"),
+                legend.title = "Cluster")
+```
+
+
+```{r}
+# Analyse de la composition des clusters
+## Moyennes des variables quantitatives
+cluster_means <- aggregate(.~ km.res2$cluster, data=iris_clean[, -c(5)], FUN=mean)
+print(cluster_means)
+
+## Proportions des différentes espèces représentées dans chaque cluster
+species_table <- table(iris_clean$Species, km.res2$cluster)
+species_proportions <- prop.table(species_table, 2)
+colnames(species_proportions) <- c("Cluster.1", "Cluster.2", "Cluster.3")
+print(species_proportions)
+
+```
+
+
+
+
+```{r}
+# Détermination du nombre optimal de clusters
+#Méthode Elbow ou "du coude"
+fviz_nbclust(iris_scaled[, -c(5)], kmeans, method = "wss") + 
+labs(x = "Nombre de clusters", y ="Variance intracluster", title = "Nombre optimal de clusters")
+```
+Analyse les ruptures dans l'évolution de la variance intra-cluster
+
+```{r}
+# Méthode de la silhouette
+fviz_nbclust(iris_scaled[, -c(5,6)], kmeans, method = "silhouette") + 
+labs(title = "Nombre optimal de clusters",x = "Nombre de clusters", y ="Silhouette moyenne")
+```
+
+```{r}
+# Application de NbClust
+res.nbclust <- NbClust(iris_scaled, distance = "euclidean",
+                  min.nc = 2, max.nc = 10, 
+                  method = "complete", index =  "all")
+
+```
+
+```{r}
+fviz_nbclust(iris_scaled[, -c(5)], kmeans, nstart = 3, method = "gap_stat", nboot = 100)+
+  labs(subtitle = "Gap statistic method") 
+```
+
+
+# Projet 2 : Décathlon
+
+```{r}
+decat <- read.table("decathlon.csv", header=TRUE, sep=";",dec=".", row.names=1, fileEncoding="latin1", check.names=FALSE)
+summary(decat)
+str(decat)
+sum(is.na(decat))
+```
+
+
+```{r, fig.height=7}
+res.pca.d <- PCA(decat, quali.sup= "Competition",quanti.sup="Classement", scale =TRUE, graph=TRUE)
+summary.PCA(res.pca.d)
+
+### Description des dimensions
+dimdesc(res.pca.d)
+dimdesc(res.pca.d, proba=0.2)
+
+# screeplot
+fviz_screeplot(res.pca.d, addlabels = TRUE) + 
+  labs(title = "",
+       x = "Nombre de dimensions (composantes principales)",
+       y = "% de variance expliquée") +
+  blue_theme()
+
+```
+
+```{r}
+# Méthode Elbow ou "du coude"
+fviz_nbclust(scale(decat[,-c(11,13)]), kmeans, method = "wss") + 
+labs(x = "Nombre de clusters", y ="Variance intracluster", title = "Nombre optimal de clusters")
+```
+
+```{r}
+# Méthode de la silhouette
+fviz_nbclust(scale(decat[,-c(11,13)]), kmeans, method = "silhouette") + 
+labs(title = "Nombre optimal de clusters",x = "Nombre de clusters", y ="Silhouette moyenne")
+```
+
+```{r}
+fviz_nbclust(scale(decat[,-c(11,13)]), kmeans, nstart = 3, method = "gap_stat", nboot = 100)+
+  labs(subtitle = "Gap statistic method") 
+```
+
+
+```{r}
+# Extraire les eigenvalues pour le jeu de données décathlon
+eigenvalues <- res.pca.d$eig[, 1]
+
+# Calculer la part d'inertie expliquée par chaque valeur propre
+explained_variance_ratio <- eigenvalues / sum(eigenvalues)
+
+# Calculer la méthode du bâton brisé pour le même nombre de dimensions
+bstick_values <- sapply(1:length(eigenvalues), function(i) sum(1/(i:length(eigenvalues))))
+
+# Calculer b_k pour chaque k
+adjusted_bstick_values <- sapply(1:length(eigenvalues), function(k) {
+  p <- length(eigenvalues)
+  sum(1/(k:p)) / p
+})
+
+# Créer un tableau (data.frame) avec les eigenvalues, la part d'inertie expliquée et b_k
+df2 <- data.frame(
+  Eigenvalues = eigenvalues,
+  ExplainedVarianceRatio = explained_variance_ratio,
+  BrokenStick = bstick_values,
+  AdjustedBrokenStick = adjusted_bstick_values
+)
+
+# Afficher le tableau
+print(df2)
+
+```
+
+```{r, fig.height=7}
+res.pca.d2 <- PCA(decat, ncp = 5, quali.sup= "Competition", quanti.sup="Classement", scale =TRUE, graph=TRUE)
+
+```
+
+```{r, fig.height=7}
+fviz_pca_ind(res.pca.d2, 
+             # individus
+             pointsize = "cos2",
+             gradient.cols = inferno(100),  # Utilisation de la palette inferno
+             repel = TRUE,
+             title = "",
+             legend.title = list(color = "contrib")
+) + 
+  blue_theme()
+```
+
+```{r}
+
+x <- res.pca.d2$ind$coord[, 1]
+y <- res.pca.d2$ind$coord[, 2]
+z <- res.pca.d2$ind$coord[, 3]
+
+# Pourcentage de variance expliquée
+variance <- res.pca.d2$eig
+
+# Titres des axes avec la variance
+xlabel <- paste("PC1 (", round(variance[1, 2], 2), "%)", sep = "")
+ylabel <- paste("PC2 (", round(variance[2, 2], 2), "%)", sep = "")
+zlabel <- paste("PC3 (", round(variance[3, 2], 2), "%)", sep = "")
+
+# Création du graphique
+scatterplot3d(x, y, z, main = "3D PCA Plot", xlab = xlabel, ylab = ylabel, zlab = zlabel, color = "blue", pch = 19)
+
+```
+
+```{r, fig.height=7}
+# Calcul des contributions pour chaque axe
+contributions <- res.pca.d2$ind$contrib
+
+# Détermination de l'axe avec la plus grande contribution pour chaque individu
+max_contrib_axis <- apply(contributions[, 1:3], 1, which.max)
+
+x <- res.pca.d2$ind$coord[, 1]
+y <- res.pca.d2$ind$coord[, 2]
+z <- res.pca.d2$ind$coord[, 3]
+
+# Assignation des couleurs
+colors <- c("blue", "orange", "red")
+plot_colors <- colors[max_contrib_axis]
+
+
+# Titres des axes avec la variance
+variance <- res.pca.d2$eig
+xlabel <- paste("PC1 (", round(variance[1, 2], 2), "%)", sep = "")
+ylabel <- paste("PC2 (", round(variance[2, 2], 2), "%)", sep = "")
+zlabel <- paste("PC3 (", round(variance[3, 2], 2), "%)", sep = "")
+
+# Création du graphique
+scatterplot3d(x, y, z, main = "3D PCA Plot", xlab = xlabel, ylab = ylabel, zlab = zlabel, color = plot_colors, pch = 19)
+
+# Ajout de la légende
+legend("bottomright", inset=.05, title="Contribution principale de l'individu", c("Axe 1", "Axe 2", "Axe 3"), fill=colors)
+
+
+```
+
+
+```{r}
+# Qualité de représentation des variables sur les axes retenus de l'ACP
+fviz_cos2(res.pca.d2, choice = "var", axes = 1:5) +
+  labs(x="", y="Somme des cosinus carrés sur les 5 axes explorés",
+       title ="")
+
+# création de la table de saturation
+saturations_2 <- round(res.pca.d2$var$cor, 2)
+saturations_2
+
+# Transformer les loadings en un format long 
+saturations_2.long <- as.data.frame(saturations_2) %>% 
+  rownames_to_column(var = "Variable") %>%
+  pivot_longer(cols = -Variable, names_to = "CP", values_to = "Saturation")
+
+# Trouver la variable avec la saturation la plus forte pour chaque CP
+max_saturations_2 <- saturations_2.long %>%
+  group_by(CP) %>%
+  slice_max(order_by = abs(Saturation), n = 1) %>%
+  ungroup()
+
+# Afficher le résultat
+print(max_saturations_2)
+
+# Contributions des variables à Comp1
+fviz_contrib(res.pca.d2, choice = "var", axes = 1, top = 10)
+
+# Contributions des variables à Comp2
+fviz_contrib(res.pca.d2, choice = "var", axes = 2, top = 10)
+
+# Contributions des variables à Comp3
+fviz_contrib(res.pca.d2, choice = "var", axes = 3, top = 10)
+
+# Contributions des variables à Comp4
+fviz_contrib(res.pca.d2, choice = "var", axes = 4, top = 10)
+
+# Contributions des variables à Comp5
+fviz_contrib(res.pca.d2, choice = "var", axes = 5, top = 10)
+
+```
+Sur la base des saturations maximales et des contributions : 
+
+Dim1 : "high scoreur" ; la variable Points a la contribution majoritaire à l'axe 1 et est extrêmement corrélée à cette dimension (corrélation de 0.98). Cette variable pourrait donc résumer à elle seule la dimension 1.
+
+Dim2 : "jeteur lourd" ; la variable Disque possède la contribution principale (0.61), cependant juste suivie (0.60) par la variable Poids.
+
+Dim3 : "endurant" ; la variable 1500m possède ici la contribution et la corrélation la plus élevée.
+
+Dim4 : "long objet dans la main" ; la variable Javelot est la variable avec la contribution et la corrélation la plus forte (0.66), mais la variable Perche reste proche (0.59)
+
+Dim5 : "Sauteur haut" ; la variable "Hauteur" possède la contribution la plus forte et la corrélation la plus élevée (0.53)
+
+Il serait sans doute envisageable de redéfinir les labels des axes en des termes bio-mécaniques plus précis ("long objet dans la main" pouvant regrouper des sollicitations musculaires situées davantage au niveau des épaules ou des bras, "endurant" le coeur, "high scoreur" les jambes en spécialité vitesse... mais je n'y connais rien! Les points communs des CP doivent être analysés sous l'angle d'une spécialisation métier de l'analyste que je ne possède hélas pas)
+
+
+*Différence K-means - CAH (Classification Ascendante Hiérarchique)* 
+
+1 - Avantages de Kmeans:
+Plus rapide et plus efficace en termes de calcul pour de grands ensembles de données (scalabilité).
+Algorithme relativement simple à comprendre dans son fonctionnement et assez facile à mettre en œuvre.
+<br>
+</br>
+
+2 - Inconvénients Kmeans
+Nécessite de spécifier le nombre de clusters à l'avance, ce qui n'est pas toujours évident ni très scientifique.
+Sensibilité aux valeurs initiales (les résultats peuvent varier en fonction des valeurs initiales des centroïdes).
+Moins efficace pour identifier des clusters de formes non sphériques ou de tailles très différentes.
+Plus grande sensibilité aux valeurs aberrantes.
+
+<br>
+</br>
+
+3 - Avantages de CAH 
+Le nombre de clusters n'a pas besoin d'être défini à l'avance.
+Fournit une structure hiérarchique des clusters, qui peut être informative (information supplémentaire).
+Permet l'utilisation de différentes mesures de distance et méthodes de liaison.
+Capable de détecter des clusters de formes et de tailles variées.
+
+4 - Inconvénients
+Méthode plus lente et plus coûteuse en termes de calcul, surtout pour de grands ensembles de données.
+La représentation hiérarchique peut être difficile à interpréter, surtout avec un grand nombre d'objets.
+Méthode "rigide" sans possibilité de réassignation: une fois qu'un point est assigné à un cluster, il ne peut pas être déplacé à un autre cluster.
+Notons que, tout comme K-means, la CAH peut être influencée par les valeurs aberrantes.
+
+
+
+```{r fig.height=7}
+decat.scaled <- scale(decat[,-c(11,13)])
+
+# Calculer k-means
+km.res_decat <- kmeans(decat.scaled, 3, nstart = 25) # k=3 est la valeur initiée par l'énoncé
+
+# Visualiser
+fviz_cluster(km.res_decat, data = decat.scaled,
+             palette = c("#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             repel = TRUE,
+             main = ""
+             ) + 
+  blue_theme()
+
+```
+
+```{r}
+cah <- HCPC(res.pca.d2, graph = FALSE)
+plot(cah, choice = "tree")
+```
+
+```{r}
+# On refait l'ACP sur l'ensemble des dimensions possibles, pas seulement 5 
+res.pca.d3 <- PCA(decat, ncp = Inf, quali.sup= "Competition", quanti.sup="Classement", scale =TRUE, graph=FALSE)
+cah2 <- HCPC(res.pca.d3, nb.clust = -1, graph = FALSE)
+plot(cah2, choice = "tree")
+```
+
+Factominer nous propose un nombre de cluster égale à 3
+
+```{r}
+# Alternative
+res.hcut <- hcut(decat.scaled, k = 3, stand = TRUE)
+fviz_dend(res.hcut, rect = TRUE, cex = 0.5,
+          k_colors = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"), main = "")
+```
+
+
+
+```{r}
+classif <- agnes(decat.scaled,method="ward")
+plot(classif,xlab="Individu",which.plot=2,main="Dendrogramme")
+
+# Afficher les sauts d'inertie
+inertie <- sort(classif$height, decreasing = TRUE)
+plot(inertie[1:20], type = "s", xlab = "Nombre de classes", ylab = "Inertie")
+
+points(c(2, 3, 4, 5), inertie[c(2, 3, 4, 5)], col = c("green3", "red3", "blue3", "orange"), cex = 2, lwd = 3)
+
+#plot(classif,xlab="Individu",which.plot=2,main="Dendrogramme")
+classif2 <- as.hclust(classif)
+plot(rev(classif2$height),type = "h", ylab = "hauteurs")
+
+```
+Plusieurs partitions possible (3 ou 4). On recherche alors la partition ayant la plus grande perte relative d’inertie.
+
+```{r, warning=FALSE, message=FALSE}
+library(JLutils)
+best.cutree(classif)
+```
+```{r}
+plot(cah, choice = "3D.map")
+```
+
+# Projet 3 : Dating et analyse des correspondances multiples
+
+
+L'Analyse des Correspondances (AC) et l'Analyse des Correspondances Multiples (ACM) sont des techniques statistiques multivariées utilisées pour analyser les relations entre variables qualitatives. L'Analyse des Correspondances Multiples est cependant une extension de l'AC, utilisée lorsque plus de deux variables catégorielles sont à analyser.
+
+
+```{r}
+users <- read.table("users.db.csv", header=TRUE, sep=",",dec=".", row.names=1, fileEncoding="latin1", check.names=FALSE)
+summary(users)
+str(users)
+sum(is.na(users))
+```
+
+```{r}
+#Retrait de la colonne last.pr.update (NA)
+users.na <- users[,-8]
+sum(is.na(users.na))
+str(users.na)
+```
+
+```{r}
+# Convertir les colonnes en Date
+users.na$date.crea <- as.Date(users.na$date.crea, format="%Y-%m-%d")
+users.na$last.connex <- as.Date(users.na$last.connex, format="%Y-%m-%d")
+users.na$last.up.photo <- as.Date(users.na$last.up.photo, format="%Y-%m-%d")
+
+
+str(users.na)
+
+# Convertir les quatre dernières colonnes en facteur
+
+users.na[, c(8,11:14)] <- lapply(users.na[, c(8,11:14)], as.factor)
+str(users.na)
+
+users.na2 <- users.na
+users.na2 <- lapply(users.na2, as.factor)
+str(users.na2)
+```
+
+```{r}
+# Sélectionner uniquement les variables qualitatives
+df_qual <- users.na[, c(8, 11:14)]
+
+
+# Effectuer une Analyse des Correspondances Multiples (ACM)
+res.acm <- MCA(df_qual, graph = TRUE)
+
+# Visualiser les variables sur le plan factoriel
+fviz_mca_var(res.acm, repel = TRUE)
+
+```
+
+L'inertie représentée est de 38.31%, à peu près distrubuée également sur les deux axes.
+
+Le genre semble ici "partager" les pratiques sociales. une analyse de "MCA factor map" pourrait confirmer ce positionnement gender_0 / gender_1.
+Le genre semble participer de manière égale à l'axe 1 et l'axe 2
+
+
+```{r}
+res.acm$var$contrib[,1:2]
+```
+
+# Projet 4 (optionnel) : Classification non supervisée par DBSCAN
+
+```{r}
+lunes <- read.table("lunes.csv", header=TRUE, sep=";",dec=".", row.names=1, fileEncoding="latin1", check.names=FALSE)
+summary(lunes)
+str(lunes)
+sum(is.na(lunes))
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+# CAH
+res.pca.l <- PCA(lunes, ncp = Inf, scale =TRUE, graph=FALSE)
+cah3 <- HCPC(res.pca.l, nb.clust = -1, graph = FALSE)
+plot(cah3, choice = "tree")
+
+fviz_cluster(cah3, lunes, frame = FALSE, geom = "point")
+
+```
+
+```{r}
+km.res2 <- kmeans(lunes, 5, nstart = 25)
+fviz_cluster(km.res2, lunes, frame = FALSE, geom = "point")
+```
+
+```{r}
+db_s <- fpc::dbscan(lunes, eps = 0.20, MinPts = 5)
+# Plot DBSCAN results
+plot(db_s, lunes, main = "DBSCAN", frame = FALSE)
+
+
+db_s2 <- dbscan(lunes, eps = 0.20, MinPts = 5)
+# Plot DBSCAN results
+plot(db_s2, lunes, main = "DBSCAN", frame = FALSE)
+
+```
+
+
+
+

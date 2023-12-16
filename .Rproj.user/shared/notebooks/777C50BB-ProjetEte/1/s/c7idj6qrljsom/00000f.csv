@@ -1,0 +1,5 @@
+"0","# Importation des données"
+"0","data <- read.csv(""dataMeta3b.csv"", header = TRUE, sep = "","", dec = ""."")"
+"0",""
+"0","# Affichage des données"
+"0","head(data)"

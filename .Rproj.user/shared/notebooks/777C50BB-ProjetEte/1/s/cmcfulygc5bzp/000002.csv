@@ -1,0 +1,29 @@
+"0","```r
+# Exploraiton des distributions des variables numériques
+data %>%
+  select(-c(Domaine, Specialite, Expertise, Etude, Complexite)) %>%
+  gather() %>%
+  ggplot(aes(value)) +
+  geom_histogram(bins = 30) +
+  facet_wrap(~key, scales = \"free\") +
+  theme_bw() +
+  blue_theme()
+```"
+"1","Error in `geom_histogram()`:
+! Problem while computing stat.
+ℹ Error occurred in the 1st layer.
+Caused by error in `setup_params()`:
+! `stat_bin()` requires a continuous x aesthetic
+✖ the x aesthetic is discrete.
+ℹ Perhaps you want `stat=\"count\"`?
+Backtrace:
+  1. base (local) `<fn>`(x)
+  2. ggplot2:::print.ggplot(x)
+  4. ggplot2:::ggplot_build.ggplot(x)
+  5. ggplot2:::by_layer(...)
+ 12. ggplot2 (local) f(l = layers[[i]], d = data[[i]])
+ 13. l$compute_statistic(d, layout)
+ 14. ggplot2 (local) compute_statistic(..., self = self)
+ 15. self$stat$setup_params(data, self$stat_params)
+ 16. ggplot2 (local) setup_params(..., self = self)
+"

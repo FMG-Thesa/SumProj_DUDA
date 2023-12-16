@@ -1,0 +1,5 @@
+"0","```r
+# Matrice de corrélation
+corrplot(cor(data[,c(2:7, 9:11)]), method = \"circle\", type = \"upper\", tl.col = \"black\", tl.srt = 45, tl.cex = 0.8, addCoef.col = \"black\", addCoef.size = 0.8, col = colorRampPalette(c(\"white\", \"steelblue\"))(100), cl.pos = \"n\", order = \"hclust\", tl.offset = 0.5, diag = FALSE, number.cex = 0.8, number.digits = 2, mar = c(0, 0, 0, 0))
+
+```"

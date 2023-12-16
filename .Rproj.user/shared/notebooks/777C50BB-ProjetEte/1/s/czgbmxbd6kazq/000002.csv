@@ -1,0 +1,7 @@
+"0","```r
+# Importation des données
+data <- read.csv(\"dataMeta3b.csv\", header = TRUE, sep = \",\", dec = \".\")
+
+# Affichage des données
+head(data)
+```"

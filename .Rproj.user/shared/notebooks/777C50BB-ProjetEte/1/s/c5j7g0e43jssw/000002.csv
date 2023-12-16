@@ -1,0 +1,11 @@
+"0","```r
+# Exploraiton des distributions des variables numériques
+data %>%
+  select(-c(Domaine, Specialite, Expertise, Etude, Complexite, Eleve, ID_Participant)) %>%
+  pivot_longer(cols = everything()) %>%
+  ggplot(aes(x = round(value,1))) +
+  geom_histogram(bins = 5) +
+  facet_wrap(~name, scales = \"free\") +
+  blue_theme()
+
+```"

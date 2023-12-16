@@ -1,0 +1,23 @@
+"0","```r
+# Suppression des variables inutiles
+data <- data %>%
+  select(-ID_Participant)
+
+# Recodage de la variables Expertise
+data$Expertise[data$Expertise == \"expert\"] <- 1
+data$Expertise[data$Expertise == \"novice\"] <- 0
+
+# Recodage de la variables Etude
+data$Etude[data$Etude == 'Etude 1'] <- 1
+data$Etude[data$Etude == 'Etude 2'] <- 2
+data$Etude[data$Etude == 'Etude 3'] <- 3
+
+varquali <- c(\"Domaine\", \"Specialite\", \"Expertise\", \"Etude\", \"Complexite\")
+
+for (var in varquali) {
+  data[,var] <- as.factor(data[,var])
+}
+
+# Affichage des données
+head(data)
+```"

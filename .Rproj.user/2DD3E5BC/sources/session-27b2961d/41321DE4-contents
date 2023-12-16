@@ -1,0 +1,10 @@
+---
+title: "Projet d'été : déterminant de l'arrêt lors d'une RI sur Internet"
+subtitle : "Exploration d'une nouvelle heuristique décisionnelle" 
+autor: "Francisco Martin-Gomez"
+output: html_notebook
+---
+
+# A propos 
+* Ce projet a été réalisée à partir des résultats de trois études indépendantes menées en France, dans des collèges et lycées du Sud de la France (Bordeaux, étude 1 et 2) et de l'Est (Reims, étude 3) entre 2018 et 2021. Ces études ont été éffectuées en partenariat avec les rectorats des deux académies, et sous la direction du laboratoire CLLE (Université Jean Jaurès, UMR CNRS 5263).
+* Pour toute information sur le jeu de données, la signification des variablmes ainsi que sur la définition donnée à « accident corporel de la circulation routière », se repporter au fichier README.md et à la notice de l'ONISR fournis dans le repository : https://github.com/nlejay/accidents_circulation

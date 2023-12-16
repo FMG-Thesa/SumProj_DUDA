@@ -1,0 +1,1469 @@
+---
+title: "Imputation simple et mutliple par analyse factorielle"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Chargement des packages/librairies nécéssaires
+
+```{r setup, echo=TRUE, include=TRUE, warning=FALSE, message=FALSE, error=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("ggplot2")
+library(factoextra)
+library(FactoMineR)
+library(FactoInvestigate)
+library(missMDA)
+library(dplyr)
+library(simputation)
+
+```
+
+#Chargement des donénes de l'expé 2b
+```{r}
+expe2b <- read.table("RawData(full)_Expe22_NA.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+```
+
+#Création du dataset pour l'imputation par analyse factorielle
+###Le dataset1 est ici basé sur l'information totale de l'expérience (Pk + Metacog + Comportement de navigation/cplxté)
+####Cela devrait permettre une imputation au plus près de ce qui fut constaté chez les participants
+###Le dataset 2 est uniquement basé sur les enregistrements de navigation
+
+
+```{r}
+###DATASET 1 
+
+expe2b_FI <- expe2b[, c("Score_QC1", "RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "Score_QC2", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "Score_QC3","RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "Score_QR1", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "Score_QR2", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "Score_QR3", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "Score_QA1", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "Score_QA2", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "Score_QA3", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3","FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3", "SW2a_QC1",  "SW2b_QC1", "SW2a_QC2",  "SW2b_QC2", "SW2a_QC3",  "SW2b_QC3", "SW2a_QR1",  "SW2b_QR1", "SW2a_QR2",  "SW2b_QR2", "SW2a_QR3",  "SW2b_QR3", "SW2a_QA1",  "SW2b_QA1",  "SW2a_QA2", "SW2b_QA2",  "SW2a_QA3", "SW2b_QA3", "Expertise")]
+
+```
+
+###Le dataset 2 est uniquement basé sur les enregistrements de navigation
+```{r}
+### DATASET2
+expe2b_Comp <- expe2b[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3","Expertise")]
+
+```
+
+###Le dataset 3 est basé sur les enregistrements de navigation et les analyses des compromis Xplr/Xplo
+```{r}
+### DATASET3
+expe2b_CompSW <- expe2b[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "SW2a_QC1", "SW2b_QC1", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "SW2a_QC2", "SW2b_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "SW2a_QC3", "SW2b_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "SW2a_QR1", "SW2b_QR1", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "SW2a_QR2", "SW2b_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "SW2a_QR3", "SW2b_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "SW2a_QA1", "SW2b_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "SW2a_QA2", "SW2b_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3", "SW2a_QA3", "SW2b_QA3")]
+
+```
+
+#Imputation valeurs manquantes par imputation factorielle multiple
+##Utilisation des packages Factominer et missMDA
+### Etape 1 : FI
+
+```{r}
+### La première étape consite à estimer les dimensions à conserver/retenir pour la moindre perte d'information
+nb_dim1 <- estim_ncpPCA(expe2b_FI, quali.sup=c(1,11,21,31,41,51,61,71,81,109), ncp.min = 0, ncp.max = 5)
+nb_dim1
+
+```
+
+
+### Etape 2 : Comportements observés
+#### Nb de dimension à retenir
+```{r}
+nb_res.Comp <- estim_ncpPCA(expe2b_Comp,quali.sup=c(46), scale = TRUE)
+nb_res.Comp
+
+### La valeur calculée est de 5 !
+
+```
+
+### Calcul des valeurs imputées
+#### Retrait de l'expertise, inutile ici (et bloquant le processus d'imputation numérique)
+
+```{r}
+### Retrait valeur nominale/qualitative
+expe2b_Comp2 <- expe2b_Comp[, -c(46)]
+
+### Calcul des valeurs imputées
+res.com.mi <- MIPCA(expe2b_Comp2, scale = TRUE, ncp=5, nboot = 1000)
+
+### Visualisation des graphiques
+plot(res.com.mi) 
+
+```
+
+### Exploration des objets et des valeurs imputées (sous frome de tableau à exporter
+
+```{r}
+names(res.com.mi)
+res.com.mi$res.imputePCA
+
+```
+
+Exporter le fichier de données imputées
+```{r}
+### Création d'un fichier indépendant
+Data_imput_Comp <- res.com.mi$res.imputePCA
+
+### Export n°1
+write.csv(res.com.mi$res.imputePCA, "Expe22_Comp_imput.csv", row.names = TRUE)
+
+```
+
+# Imputation simple par analyse factorielle multiple
+## Version 1 : informaiton totale (4 groupes)
+#### gp comportement (logs navigation)
+#### gp performance (scores)
+#### gp analyse compromis xplr/xplo (switchs)
+#### gp métacognitiion (FOF/FOK)
+#### gp expertise
+
+```{r}
+expe2b_CompSW <- expe2b[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "SW2a_QC1", "SW2b_QC1", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "SW2a_QC2", "SW2b_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "SW2a_QC3", "SW2b_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "SW2a_QR1", "SW2b_QR1", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "SW2a_QR2", "SW2b_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "SW2a_QR3", "SW2b_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "SW2a_QA1", "SW2b_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "SW2a_QA2", "SW2b_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3", "SW2a_QA3", "SW2b_QA3",  "Expertise")]
+
+newDF.expe2b_CompSW <- expe2b_CompSW[c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3", "SW2a_QC1", "SW2b_QC1", "SW2a_QC2", "SW2b_QC2", "SW2a_QC3", "SW2b_QC3", "SW2a_QR1", "SW2b_QR1", "SW2a_QR2", "SW2b_QR2", "SW2a_QR3", "SW2b_QR3", "SW2a_QA1", "SW2b_QA1", "SW2a_QA2", "SW2b_QA2", "SW2a_QA3", "SW2b_QA3")]
+
+### estimation du nombre de dimension
+nb_res.Comp <- estim_ncpPCA(expe2b_CompSW, quali.sup = c(64), scale = TRUE)
+nb_res.Comp
+
+
+```
+
+```{r}
+### estimation du nombre de dimension
+nb_res.CompSW <- estim_ncpPCA(newDF.expe2b_CompSW, quali.sup = c(64), scale = TRUE)
+nb_res.Comp
+
+```
+
+
+
+```{r}
+
+### imputation MFA
+dfcompleted <- missMDA::imputeMFA(newDF.expe2b_CompSW, ncp=2,group=c(45,18), type=c("s","s"))
+res.MFA<-MFA(newDF.expe2b_CompSW,tab.comp=dfcompleted,group=c(45,18), type=c("s","s"),name.group=c("Comp", "Switchs"),graph=FALSE)
+
+dfcompleted$completeObs
+
+
+
+```
+
+Exporter le fichier de données imputées
+```{r}
+dfcompleted
+write.csv(dfcompleted$completeObs, "expe22_CompSW_imp.csv", row.names = TRUE)
+
+### Création d'un fichier indépendant
+Data_imput_CompSW <- res.MFA$dfcompleted
+
+### Export n°1
+write.csv(Data_imput_CompSW, "Expe22_CompSW_imput.csv", row.names = TRUE)
+
+```
+
+
+
+```{r}
+logComp <- log10(expe2b_FI[, c(2:10,12:20,22:30,32:40,42:50,52:60,62:70,72:80,82:90)] + 1)
+logComp
+nb_res.logComp <- estim_ncpPCA(logComp, scale = TRUE)
+nb_res.logComp
+
+```
+
+```{r}
+
+### Calcul des valeurs imputées
+res.logcomp.mi <- MIPCA(logComp, scale = TRUE, ncp=5, nboot = 1000)
+
+### Visualisation des graphiques
+plot(res.logcomp.mi)
+
+```
+
+
+```{r}
+### Création d'un fichier indépendant
+Data_mi_logComp <- res.logcomp.mi$res.imputePCA
+
+
+### Export du fichier des données imputées
+write.csv( res.logcomp.mi$res.imputePCA, "Expe22_logCompM_MI.csv", row.names = TRUE)
+```
+
+```{r}
+### essai de création de la matrice des ratios RI/Xplo
+ratio.trad.xplo <- expe2b_FI[,c("RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3")]/expe2b_FI[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3")]
+
+```
+
+```{r}
+logcompM.mi <- read.table("Expe22_logCompM_MI.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+logcompM.mi
+
+ratio.trad.xplo <- logcompM.mi[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3")]/logcompM.mi[,c("RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3")]
+
+
+```
+
+```{r}
+ratio.trad.xplo
+
+### Export du fichier des données
+write.csv(ratio.trad.xplo, "Expe22_ratio_trad_xplo.csv", row.names = TRUE)
+
+```
+
+```{r}
+
+ratio.trad.xplr <- logcompM.mi[,c("Xplr_QC1","Xplr_QC2","Xplr_QC3","Xplr_QR1","Xplr_QR2","Xplr_QR3","Xplr_QA1","Xplr_QA2","Xplr_QA3")]/logcompM.mi[,c("RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3")]
+
+### Export du fichier des données
+write.csv(ratio.trad.xplr, "Expe22_ratio_trad_xplr.csv", row.names = TRUE)
+
+```
+
+```{r}
+###DATASET base1 (mesures comportementales + analyse SW2a + PK) 
+
+expe2b_base1 <- expe2b[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "SW2a_QC1", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "SW2a_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "SW2a_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "SW2a_QR1", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "SW2a_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "SW2a_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "SW2a_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "SW2a_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3", "SW2a_QA3", "Expertise")]
+
+### retrait de DULO0612G
+expe2b_base1_w1 <- expe2b_base1[-25,]
+
+```
+
+```{r}
+### retrait de l'expertise (variable qualitative) pour faciliter les calculs d'imputation
+expe2b_base1_w1 <- expe2b_base1_w1[,-55]
+
+```
+
+
+
+
+```{r}
+### Déterminer les dimensions
+nb_res.base1_w1.mi <- estim_ncpPCA(expe2b_base1_w1,scale = TRUE)
+nb_res.base1_w1.mi
+
+```
+
+
+```{r}
+
+### Calcul des valeurs imputées de base1
+res.base1_w1.mi <- MIPCA(expe2b_base1_w1, scale = TRUE, ncp=2, nboot = 1000)
+
+### Visualisation des graphiques
+plot(res.base1_w1.mi) 
+
+```
+
+### Exploration des objets et des valeurs imputées (sous frome de tableau à exporter
+
+```{r}
+names(res.base1_w1.mi)
+res.base1_w1.mi$res.imputePCA
+
+```
+
+Exporter le fichier de données imputées
+```{r}
+### Création d'un fichier indépendant
+Data_base1_w1.mi <- res.base1_w1.mi$res.imputePCA
+
+### Export n°1
+write.csv(res.base1_w1.mi$res.imputePCA, "Expe22_base1_w1_MI.csv", row.names = TRUE)
+
+```
+
+```{r}
+base1_MI_w1 <- read.table("Expe22_base1_w1_MI.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_RI_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('RI_QC')), na.rm = TRUE))
+
+base1_MI_w1 <- base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_RI_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('RI_QR')), na.rm = TRUE))
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_RI_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('RI_QA')), na.rm = TRUE))
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Xplr_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Xplr_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Xplr_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Xplo_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+
+base1_MI_w1 %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Xplo_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Req_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('Req_QC')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Req_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('Req_QR')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Req_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('Req_QA')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Doc_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('Doc_QC')), na.rm = TRUE))
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Doc_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('Doc_QR')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Doc_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('Doc_QA')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Sw2a_QC = rowMeans(select(base1_MI_w1,
+                                    starts_with('SW2a_QC')), na.rm = TRUE))
+
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Sw2a_QR = rowMeans(select(base1_MI_w1,
+                                    starts_with('SW2a_QR')), na.rm = TRUE))
+
+base1_MI_w1 <- base1_MI_w1 %>%
+  mutate(Moy_Sw2a_QA = rowMeans(select(base1_MI_w1,
+                                    starts_with('SW2a_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+write.csv(base1_MI_w1, "Expe22_base1_w1_MI_Moy.csv", row.names = TRUE)
+
+```
+
+```{r}
+expe2b_MetaPK<- expe2b[, c("FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3", "Expertise")]
+
+
+```
+
+```{r}
+expe2b_MetaPK <- expe2b_MetaPK[-25,]
+
+```
+
+```{r}
+base1_MI_MetaPK <- cbind(base1_MI_w1,expe2b_MetaPK)
+
+```
+
+```{r}
+base1_MI_MetaPK
+
+```
+
+
+```{r}
+write.csv(base1_MI_MetaPK, "Expe22_base1_MI_MetaPK.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+base1_Meta_Moy <- expe2b_MetaPK
+
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOK_QC = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOK_QC')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOK_QR = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOK_QR')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOK_QA = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOK_QA')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFD_QC = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFD_QC')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFD_QR = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFD_QR')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFD_QA = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFD_QA')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFR_QC = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFR_QC')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFR_QR = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFR_QR')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFR_QA = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFR_QA')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFG_QC = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFG_QC')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFG_QR = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFG_QR')), na.rm = TRUE))
+
+base1_Meta_Moy <- base1_Meta_Moy %>%
+  mutate(Moy_FOFG_QA = rowMeans(select(expe2b_MetaPK,
+                                    starts_with('FOFG_QA')), na.rm = TRUE))
+
+
+```
+
+
+```{r}
+write.csv(base1_Meta_Moy, "Expe22_base1_MetaMoy.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+base1_MI_MetaPK_Moy <- base1_MI_MetaPK
+
+```
+
+
+```{r}
+base1_MI_MetaPK_Moy <- cbind(base1_MI_MetaPK_Moy,base1_Meta_Moy[,c("Moy_FOFG_QC","Moy_FOFG_QR","Moy_FOFG_QA","Moy_FOFR_QC", "Moy_FOFR_QR","Moy_FOFR_QA","Moy_FOFD_QC","Moy_FOFD_QR","Moy_FOFD_QA","Moy_FOK_QC","Moy_FOK_QR","Moy_FOK_QA")])
+
+```
+
+
+```{r}
+write.csv(base1_MI_MetaPK_Moy, "Expe22_base1_MI_MetaPK_Moy.csv", row.names = TRUE)
+```
+
+
+
+```{r}
+base12_MI_MetaPK_Moy<- read.table("Expe22_base1_MI_MetaPK_Moy.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+
+base12a_MI_MetaPK_Moy <- select(base12_MI_MetaPK_Moy, -Expertise)
+
+```
+
+```{r}
+logbase1_MI_MetaPK_Moy <- log10(base12a_MI_MetaPK_Moy + 1)
+logbase1_MI_MetaPK_Moy <- cbind(logbase1_MI_MetaPK_Moy,base12_MI_MetaPK_Moy[,c("Expertise")])
+
+```
+
+```{r}
+write.csv(logbase1_MI_MetaPK_Moy, "Expe22_logbase1_MI_MetaPK_Moy.csv", row.names = TRUE)
+
+```
+
+
+
+
+
+##########################################
+###### Imputation sur base réduite (v1)
+
+
+
+```{r}
+expe2b_FIa <- select(expe2b_FI, -c(Score_QA3,Expertise,SW2b_QC1,SW2b_QC2,SW2b_QC3,SW2b_QR1, SW2b_QR2,SW2b_QR3,SW2b_QA1,SW2b_QA2,SW2b_QA3)) 
+
+```
+
+```{r}
+log.expe2b_FIa <- log10(expe2b_FIa + 1)
+
+```
+
+```{r}
+nb_res.Comp_logexpe2b_FIa <- estim_ncpPCA(log.expe2b_FIa, scale = TRUE)
+nb_res.Comp_logexpe2b_FIa
+
+
+```
+
+
+```{r}
+
+### Calcul des valeurs imputées
+res.Comp_logexpe2b_FIa.mi <- MIPCA(log.expe2b_FIa, scale = TRUE, ncp=5, nboot = 1000)
+
+### Visualisation des graphiques
+plot(res.Comp_logexpe2b_FIa.mi) 
+
+```
+
+### Exploration des objets et des valeurs imputées (sous frome de tableau à exporter
+
+```{r}
+names(res.Comp_logexpe2b_FIa.mi)
+res.Comp_logexpe2b_FIa.mi$res.imputePCA
+
+```
+
+## Exporter le fichier de données imputées
+```{r}
+### Création d'un fichier indépendant
+Data_res.Comp_logexpe2b_FIa.mi <- res.Comp_logexpe2b_FIa.mi$res.imputePCA
+
+### Export n°1
+write.csv(res.Comp_logexpe2b_FIa.mi$res.imputePCA, "Expe22_Logexpe2b_FIa.mi.csv", row.names = TRUE)
+
+```
+
+## Moyennes sur fichier imputé
+```{r}
+Expe22_Logexpe2b_FIa.mi <- read.table("Expe22_Logexpe2b_FIa.mi.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+
+### Dataset pour moyenne des données comp
+log.expe2b_FIa_MoyComp <- Expe22_Logexpe2b_FIa.mi[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1",  "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3")]
+
+### Dataset pour donénes trad
+log.expe2b_FIa_MoySW <- Expe22_Logexpe2b_FIa.mi[, c("SW2a_QC1","SW2a_QC2","SW2a_QC3","SW2a_QR1","SW2a_QR2","SW2a_QR3", "SW2a_QA1", "SW2a_QA2", "SW2a_QA3")]
+
+### Dataset pour moyenne des données score
+log.expe2b_FIa_MoySC <- Expe22_Logexpe2b_FIa.mi[, c("Score_QC1", "Score_QC2", "Score_QC3", "Score_QR1", "Score_QR2", "Score_QR3", "Score_QA1", "Score_QA2")]
+
+### Dataset pour moyenne des données metacog
+log.expe2b_FIa_MoyMeta <- Expe22_Logexpe2b_FIa.mi[, c("FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3")]
+
+```
+
+```{r}
+### Dataset pour calcul des ratios de compromis Xplr/Xplo
+log.expe2b_FIa_Trad <-Expe22_Logexpe2b_FIa.mi[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3", "Xplr_QC1","Xplr_QC2","Xplr_QC3","Xplr_QR1","Xplr_QR2","Xplr_QR3","Xplr_QA1","Xplr_QA2","Xplr_QA3")]
+
+```
+
+```{r}
+### Calcul des moyennes Comp
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_RI_QC = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('RI_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_RI_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('RI_QR')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_RI_QA = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('RI_QA')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplr_QC = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplr_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplr_QA = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplo_QC = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Xplo_QA = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Req_QC = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Req_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Req_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Req_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Req_QA = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Req_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Doc_QC = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Doc_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Doc_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Doc_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp  %>%
+  mutate(Moy_Doc_QA = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Doc_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### Ajout manque data : Moy_Xplo_QR (???)
+log.expe2b_FIa_MoyComp  <- log.expe2b_FIa_MoyComp %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIa_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+```
+
+```{r}
+### Ajout moyenne SW
+log.expe2b_FIa_MoySW  <- log.expe2b_FIa_MoySW  %>%
+  mutate(Moy_SW2a_QC= rowMeans(select(log.expe2b_FIa_MoySW ,
+                                    starts_with('SW2a_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoySW  <- log.expe2b_FIa_MoySW  %>%
+  mutate(Moy_SW2a_QR= rowMeans(select(log.expe2b_FIa_MoySW ,
+                                    starts_with('SW2a_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIa_MoySW  <- log.expe2b_FIa_MoySW  %>%
+  mutate(Moy_SW2a_QA= rowMeans(select(log.expe2b_FIa_MoySW ,
+                                    starts_with('SW2a_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### Ajout des moyennes Meta
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOK_QC = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOK_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOK_QR = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOK_QR')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOK_QA = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOK_QA')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFD_QC = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFD_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFD_QR = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFD_QR')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta%>%
+  mutate(Moy_FOFD_QA = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFD_QA')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFR_QC = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFR_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFR_QR = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFR_QR')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFR_QA = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFR_QA')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFG_QC = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFG_QC')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFG_QR = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFG_QR')), na.rm = TRUE))
+
+log.expe2b_FIa_MoyMeta<- log.expe2b_FIa_MoyMeta %>%
+  mutate(Moy_FOFG_QA = rowMeans(select(log.expe2b_FIa_MoyMeta,
+                                    starts_with('FOFG_QA')), na.rm = TRUE))
+
+  
+```
+
+
+```{r}
+### Concaténation des dataset pour obtenir un fichier final
+Logexpe2b_FIa.mi <- cbind(log.expe2b_FIa_MoyComp,log.expe2b_FIa_MoySW)
+Logexpe2b_FIa.mi <- cbind(Logexpe2b_FIa.mi,log.expe2b_FIa_MoyMeta)
+Logexpe2b_FIa.mi <- cbind(Logexpe2b_FIa.mi,log.expe2b_FIa_MoySC)
+
+```
+
+```{r}
+### Ajout de l'expertise
+Logexpe2b_FIa.mi <- cbind(Logexpe2b_FIa.mi,expe2b_FI[,"Expertise"])
+```
+
+```{r}
+### Export du fichier
+write.csv(Logexpe2b_FIa.mi, "Expe22_log_FIa_mi.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+### Ajout des ratio (Xplo-Xplr / RI) ; analyse compromis
+ratio.log.expe2b_FIa_Trad <- log.expe2b_FIa_Trad[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3","Xplr_QC1","Xplr_QC2","Xplr_QC3","Xplr_QR1","Xplr_QR2","Xplr_QR3","Xplr_QA1","Xplr_QA2","Xplr_QA3" )]/Expe22_Logexpe2b_FIa.mi[,c("RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3","RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3")]
+
+
+```
+
+
+```{r}
+write.csv(log.expe2b_FIa_Trad, "Expe22_logFI_trad.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+### Calcul des moyennes ratio Trade-off
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXO_QC = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXO_QR = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXO_QA = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXR_QC = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXR_QR = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+ratio.log.expe2b_FIa_Trad  <- ratio.log.expe2b_FIa_Trad  %>%
+  mutate(Moy_TradXR_QA = rowMeans(select(ratio.log.expe2b_FIa_Trad ,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### ajout du facteur expertise au fichier ratio Trade-off
+ratio.log.expe2b_FIa_Trad <- cbind(ratio.log.expe2b_FIa_Trad,expe2b_FI[,"Expertise"])
+
+```
+
+```{r}
+### Export du fichier des données
+write.csv(ratio.log.expe2b_FIa_Trad, "Expe22_logratio_trad.csv", row.names = TRUE)
+
+```
+
+```{r}
+### retrait de DULO0612G
+tempo.ratio.log.expe2b_FIa_Trad <- ratio.log.expe2b_FIa_Trad[-25,]
+
+```
+
+```{r}
+### Export du fichier des données sans DULO
+write.csv(tempo.ratio.log.expe2b_FIa_Trad, "Expe22_logratio_trad_tempo.csv", row.names = TRUE)
+
+```
+
+
+
+
+
+
+
+##################################################
+################### Imputation sur base réduite sans DOLU0612G
+
+
+
+```{r}
+#### Création du dataset de travail
+
+expe2b_FIb <- select(expe2b_FI, -c(Score_QA3,Expertise,SW2b_QC1,SW2b_QC2,SW2b_QC3,SW2b_QR1, SW2b_QR2,SW2b_QR3,SW2b_QA1,SW2b_QA2,SW2b_QA3))
+
+expe2b_FIb <- expe2b_FIb[-25,]
+
+expertise <- expe2b[,"Expertise"]
+expertise <- expertise[-25]
+
+```
+
+```{r}
+log.expe2b_FIb <- log10(expe2b_FIb + 1)
+
+```
+
+```{r}
+nb_res.Comp_logexpe2b_FIb <- estim_ncpPCA(log.expe2b_FIb, scale = TRUE)
+nb_res.Comp_logexpe2b_FIb
+
+
+```
+
+
+```{r}
+
+### Calcul des valeurs imputées
+res.Comp_logexpe2b_FIb.mi <- MIPCA(log.expe2b_FIb, scale = TRUE, ncp=5, nboot = 1000)
+
+### Visualisation des graphiques
+plot(res.Comp_logexpe2b_FIb.mi) 
+
+```
+
+### Exploration des objets et des valeurs imputées (sous frome de tableau à exporter
+
+```{r}
+names(res.Comp_logexpe2b_FIb.mi)
+res.Comp_logexpe2b_FIb.mi$res.imputePCA
+
+```
+
+## Exporter le fichier de données imputées
+```{r}
+### Création d'un fichier indépendant
+Data_res.Comp_logexpe2b_FIb.mi <- res.Comp_logexpe2b_FIb.mi$res.imputePCA
+
+### Export n°1
+write.csv(res.Comp_logexpe2b_FIb.mi$res.imputePCA, "Expe22_Logexpe2b_FIb.mi.csv", row.names = TRUE)
+
+```
+
+## Moyennes sur fichier imputé
+```{r}
+Expe22_Logexpe2b_FIb.mi <- read.table("Expe22_Logexpe2b_FIb.mi.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+
+### Dataset pour moyenne des données comp
+log.expe2b_FIb_MoyComp <- Expe22_Logexpe2b_FIb.mi[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1",  "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3")]
+
+### Dataset pour donénes trad
+log.expe2b_FIb_MoySW <- Expe22_Logexpe2b_FIb.mi[, c("SW2a_QC1","SW2a_QC2","SW2a_QC3","SW2a_QR1","SW2a_QR2","SW2a_QR3", "SW2a_QA1", "SW2a_QA2", "SW2a_QA3")]
+
+### Dataset pour moyenne des données score
+log.expe2b_FIb_MoySC <- Expe22_Logexpe2b_FIb.mi[, c("Score_QC1", "Score_QC2", "Score_QC3", "Score_QR1", "Score_QR2", "Score_QR3", "Score_QA1", "Score_QA2")]
+
+### Dataset pour moyenne des données metacog
+log.expe2b_FIb_MoyMeta <- Expe22_Logexpe2b_FIb.mi[, c("FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3")]
+
+```
+
+```{r}
+### Dataset pour calcul des ratios de compromis Xplr/Xplo
+log.expe2b_FIb_Trad <-Expe22_Logexpe2b_FIb.mi[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3", "Xplr_QC1","Xplr_QC2","Xplr_QC3","Xplr_QR1","Xplr_QR2","Xplr_QR3","Xplr_QA1","Xplr_QA2","Xplr_QA3")]
+
+```
+
+
+```{r}
+### Calcul des moyennes Comp
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_RI_QC = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('RI_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_RI_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('RI_QR')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_RI_QA = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('RI_QA')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplr_QC = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplr_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplr_QA = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplo_QC = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Xplo_QA = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Req_QC = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Req_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Req_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Req_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Req_QA = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Req_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Doc_QC = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Doc_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Doc_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Doc_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp  %>%
+  mutate(Moy_Doc_QA = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Doc_QA')), na.rm = TRUE))
+```
+
+```{r}
+### Ajout manque data : Moy_Xplo_QR (???)
+log.expe2b_FIb_MoyComp  <- log.expe2b_FIb_MoyComp %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIb_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+```
+
+```{r}
+### Ajout moyenne SW
+log.expe2b_FIb_MoySW  <- log.expe2b_FIb_MoySW  %>%
+  mutate(Moy_SW2a_QC= rowMeans(select(log.expe2b_FIb_MoySW ,
+                                    starts_with('SW2a_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoySW  <- log.expe2b_FIb_MoySW  %>%
+  mutate(Moy_SW2a_QR= rowMeans(select(log.expe2b_FIb_MoySW ,
+                                    starts_with('SW2a_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIb_MoySW  <- log.expe2b_FIb_MoySW  %>%
+  mutate(Moy_SW2a_QA= rowMeans(select(log.expe2b_FIb_MoySW ,
+                                    starts_with('SW2a_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### Ajout des moyennes Meta
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOK_QC = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOK_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOK_QR = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOK_QR')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOK_QA = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOK_QA')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFD_QC = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFD_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFD_QR = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFD_QR')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta%>%
+  mutate(Moy_FOFD_QA = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFD_QA')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFR_QC = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFR_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFR_QR = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFR_QR')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFR_QA = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFR_QA')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFG_QC = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFG_QC')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFG_QR = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFG_QR')), na.rm = TRUE))
+
+log.expe2b_FIb_MoyMeta<- log.expe2b_FIb_MoyMeta %>%
+  mutate(Moy_FOFG_QA = rowMeans(select(log.expe2b_FIb_MoyMeta,
+                                    starts_with('FOFG_QA')), na.rm = TRUE))
+  
+```
+
+
+```{r}
+### Concaténation des dataset pour obtenir un fichier final
+Logexpe2b_FIb.mi <- cbind(log.expe2b_FIb_MoyComp,log.expe2b_FIb_MoySW)
+Logexpe2b_FIb.mi <- cbind(Logexpe2b_FIb.mi,log.expe2b_FIb_MoyMeta)
+Logexpe2b_FIb.mi <- cbind(Logexpe2b_FIb.mi,log.expe2b_FIb_MoySC)
+
+```
+
+```{r}
+### Ajout de l'expertise
+Logexpe2b_FIb.mi <- cbind(Logexpe2b_FIb.mi,expertise)
+```
+
+```{r}
+### Export du fichier
+write.csv(Logexpe2b_FIb.mi, "Expe22_log_FIb_mi.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+### Ajout des ratio (Xplo-Xplr / RI) ; analyse compromis
+ratio.log.expe2b_FIb_Trad <- log.expe2b_FIb_Trad[,c("Xplo_QC1","Xplo_QC2","Xplo_QC3","Xplo_QR1","Xplo_QR2","Xplo_QR3","Xplo_QA1","Xplo_QA2","Xplo_QA3","Xplr_QC1","Xplr_QC2","Xplr_QC3","Xplr_QR1","Xplr_QR2","Xplr_QR3","Xplr_QA1","Xplr_QA2","Xplr_QA3" )]/Expe22_Logexpe2b_FIb.mi[,c("RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3","RI_QC1","RI_QC2","RI_QC3","RI_QR1","RI_QR2","RI_QR3","RI_QA1","RI_QA2","RI_QA3")]
+
+
+```
+
+
+```{r}
+write.csv(log.expe2b_FIb_Trad, "Expe22_logFIb_trad.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+### Calcul des moyennes ratio Trade-off
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXO_QC = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXO_QR = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXO_QA = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXR_QC = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXR_QR = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+ratio.log.expe2b_FIb_Trad  <- ratio.log.expe2b_FIb_Trad  %>%
+  mutate(Moy_TradXR_QA = rowMeans(select(ratio.log.expe2b_FIb_Trad ,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### ajout du facteur expertise au fichier ratio Trade-off
+ratio.log.expe2b_FIb_Trad <- cbind(ratio.log.expe2b_FIb_Trad,expertise)
+
+```
+
+```{r}
+### Export du fichier des données
+write.csv(ratio.log.expe2b_FIa_Trad, "Expe22_logratiob_trad.csv", row.names = TRUE)
+
+```
+
+
+
+
+
+#########################  Imputation simple par MFA
+
+
+
+
+```{r}
+### création dataset de travail
+expe2b_FIc <- expe2b[, c("Score_QC1", "RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "Score_QC2", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "Score_QC3","RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "Score_QR1", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "Score_QR2", "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "Score_QR3", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "Score_QA1", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "Score_QA2", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "Score_QA3", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3","FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3", "SW2a_QC1",  "SW2b_QC1", "SW2a_QC2",  "SW2b_QC2", "SW2a_QC3",  "SW2b_QC3", "SW2a_QR1",  "SW2b_QR1", "SW2a_QR2",  "SW2b_QR2", "SW2a_QR3",  "SW2b_QR3", "SW2a_QA1",  "SW2b_QA1",  "SW2a_QA2", "SW2b_QA2",  "SW2a_QA3", "SW2b_QA3", "Expertise")]
+
+expe2b_FIct <- select(expe2b_FIc, -c(Score_QA3,Expertise,SW2b_QC1,SW2b_QC2,SW2b_QC3,SW2b_QR1, SW2b_QR2,SW2b_QR3,SW2b_QA1,SW2b_QA2,SW2b_QA3)) 
+
+```
+
+```{r}
+### Passage au log
+log.expe2b_FIct <- log10(expe2b_FIct + 1)
+
+```
+
+
+```{r}
+### Classer le dataset pour réaliser MFA
+
+### Dataset pour données comp
+log.expe2b_FIct_Comp <- log.expe2b_FIct[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1",  "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3")]
+
+### Dataset pour donénes SW
+log.expe2b_FIct_SW <- log.expe2b_FIct[, c("SW2a_QC1","SW2a_QC2","SW2a_QC3","SW2a_QR1","SW2a_QR2","SW2a_QR3", "SW2a_QA1", "SW2a_QA2", "SW2a_QA3")]
+
+### Dataset pour données score (A3 = 0 ; pose problème de constance symétrique >> retiré initalement)
+log.expe2b_FIct_SC <- log.expe2b_FIct[, c("Score_QC1", "Score_QC2", "Score_QC3", "Score_QR1", "Score_QR2", "Score_QR3", "Score_QA1", "Score_QA2")]
+
+### Dataset pour moyenne des données metacog
+log.expe2b_FIct_Meta <- log.expe2b_FIct[, c("FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3")]
+
+```
+
+
+```{r}
+
+log.expe2b_FIct.MFA <- cbind(log.expe2b_FIct_Comp,log.expe2b_FIct_SW)
+log.expe2b_FIct.MFA <- cbind(log.expe2b_FIct.MFA,log.expe2b_FIct_SC) 
+log.expe2b_FIct.MFA <- cbind(log.expe2b_FIct.MFA,log.expe2b_FIct_Meta)
+
+```
+
+
+```{r}
+### estimation du nombre de dimension
+nb_res.log.expe2b_FIct.MFA  <- estim_ncpPCA(log.expe2b_FIct.MFA , scale = TRUE)
+nb_res.log.expe2b_FIct.MFA 
+
+```
+
+```{r}
+### imputation MFA
+dfcompleted.logexpe2b_FIct <- missMDA::imputeMFA(log.expe2b_FIct.MFA, ncp=5,group=c(45,9,8,36), type=c("s","s","s","s"))
+
+res.MFA.logexpe2b_FIct <- MFA(log.expe2b_FIct.MFA,tab.comp=dfcompleted.logexpe2b_FIct,group=c(45,9,8,36), type=c("s","s","s","s"),name.group=c("Comp", "Switchs", "score", "Meta"),graph=FALSE)
+
+dfcompleted.logexpe2b_FIct$completeObs
+```
+
+```{r}
+### exporter les données imputées
+
+write.csv(dfcompleted.logexpe2b_FIct$completeObs, "Expe22_logexpe2b_FIct.csv", row.names = TRUE)
+
+### Création d'un fichier indépendant
+Data_imput_logexpe2b_FIct <- res.MFA.logexpe2b_FIct$dfcompleted
+
+
+```
+
+## Moyennes sur fichier imputé / MFA
+```{r}
+Expe22_Logexpe2b_FIct.mfa <- read.table("Expe22_Logexpe2b_FIct.csv", header=TRUE, sep=",",dec=".", row.names=1, check.names=TRUE, fileEncoding="latin1")
+
+### Dataset pour moyenne des données comp
+log.expe2b_FIct_MoyComp <- Expe22_Logexpe2b_FIct.mfa[, c("RI_QC1", "Xplr_QC1", "Xplo_QC1", "Req_QC1", "Doc_QC1", "RI_QC2", "Xplr_QC2", "Xplo_QC2", "Req_QC2", "Doc_QC2", "RI_QC3", "Xplr_QC3", "Xplo_QC3", "Req_QC3", "Doc_QC3", "RI_QR1", "Xplr_QR1", "Xplo_QR1", "Req_QR1", "Doc_QR1",  "RI_QR2", "Xplr_QR2", "Xplo_QR2", "Req_QR2", "Doc_QR2", "RI_QR3", "Xplr_QR3", "Xplo_QR3", "Req_QR3", "Doc_QR3", "RI_QA1", "Xplr_QA1", "Xplo_QA1", "Req_QA1", "Doc_QA1", "RI_QA2", "Xplr_QA2", "Xplo_QA2", "Req_QA2", "Doc_QA2", "RI_QA3", "Xplr_QA3", "Xplo_QA3", "Req_QA3", "Doc_QA3")]
+
+### Dataset pour donénes trad
+log.expe2b_FIct_MoySW <- Expe22_Logexpe2b_FIct.mfa[, c("SW2a_QC1","SW2a_QC2","SW2a_QC3","SW2a_QR1","SW2a_QR2","SW2a_QR3", "SW2a_QA1", "SW2a_QA2", "SW2a_QA3")]
+
+### Dataset pour moyenne des données score
+log.expe2b_FIct_MoySC <- Expe22_Logexpe2b_FIct.mfa[, c("Score_QC1", "Score_QC2", "Score_QC3", "Score_QR1", "Score_QR2", "Score_QR3", "Score_QA1", "Score_QA2")]
+
+### Dataset pour moyenne des données metacog
+log.expe2b_FIct_MoyMeta <- Expe22_Logexpe2b_FIct.mfa[, c("FOFG_QC1", "FOFR_QC1", "FOFD_QC1", "FOK_QC1", "FOFG_QC2", "FOFR_QC2", "FOFD_QC2", "FOK_QC2", "FOFG_QC3", "FOFR_QC3", "FOFD_QC3", "FOK_QC3", "FOFG_QR1", "FOFR_QR1", "FOFD_QR1", "FOK_QR1", "FOFG_QR2", "FOFR_QR2", "FOFD_QR2", "FOK_QR2", "FOFG_QR3", "FOFR_QR3", "FOFD_QR3", "FOK_QR3", "FOFG_QA1", "FOFR_QA1", "FOFD_QA1", "FOK_QA1", "FOFG_QA2", "FOFR_QA2", "FOFD_QA2", "FOK_QA2", "FOFG_QA3", "FOFR_QA3", "FOF_QA3", "FOK_QA3")]
+
+```
+
+```{r}
+### Calcul des moyennes Comp
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_RI_QC = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('RI_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_RI_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('RI_QR')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_RI_QA = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('RI_QA')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplr_QC = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplr_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplr_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplr_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplr_QA = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplr_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplo_QC = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplo_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Xplo_QA = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplo_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Req_QC = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Req_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Req_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Req_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Req_QA = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Req_QA')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Doc_QC = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Doc_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Doc_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Doc_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp  %>%
+  mutate(Moy_Doc_QA = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Doc_QA')), na.rm = TRUE))
+```
+
+```{r}
+### Ajout manque data : Moy_Xplo_QR (???)
+log.expe2b_FIct_MoyComp  <- log.expe2b_FIct_MoyComp %>%
+  mutate(Moy_Xplo_QR = rowMeans(select(log.expe2b_FIct_MoyComp ,
+                                    starts_with('Xplo_QR')), na.rm = TRUE))
+
+```
+
+```{r}
+### Ajout moyenne SW
+log.expe2b_FIct_MoySW  <- log.expe2b_FIct_MoySW  %>%
+  mutate(Moy_SW2a_QC= rowMeans(select(log.expe2b_FIct_MoySW ,
+                                    starts_with('SW2a_QC')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoySW  <- log.expe2b_FIct_MoySW  %>%
+  mutate(Moy_SW2a_QR= rowMeans(select(log.expe2b_FIct_MoySW ,
+                                    starts_with('SW2a_QR')), na.rm = TRUE))
+
+
+log.expe2b_FIct_MoySW  <- log.expe2b_FIct_MoySW  %>%
+  mutate(Moy_SW2a_QA= rowMeans(select(log.expe2b_FIct_MoySW ,
+                                    starts_with('SW2a_QA')), na.rm = TRUE))
+
+```
+
+```{r}
+### Ajout des moyennes Meta
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOK_QC = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOK_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOK_QR = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOK_QR')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOK_QA = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOK_QA')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFD_QC = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFD_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFD_QR = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFD_QR')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta%>%
+  mutate(Moy_FOFD_QA = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFD_QA')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFR_QC = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFR_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFR_QR = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFR_QR')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFR_QA = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFR_QA')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFG_QC = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFG_QC')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFG_QR = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFG_QR')), na.rm = TRUE))
+
+log.expe2b_FIct_MoyMeta<- log.expe2b_FIct_MoyMeta %>%
+  mutate(Moy_FOFG_QA = rowMeans(select(log.expe2b_FIct_MoyMeta,
+                                    starts_with('FOFG_QA')), na.rm = TRUE))
+  
+```
+
+
+```{r}
+### Concaténation des dataset pour obtenir un fichier final
+log.expe2b_FIctf.MFA <- cbind(log.expe2b_FIct_MoyComp,log.expe2b_FIct_MoySW)
+log.expe2b_FIctf.MFA <- cbind(log.expe2b_FIctf.MFA,log.expe2b_FIct_MoyMeta)
+log.expe2b_FIctf.MFA <- cbind(log.expe2b_FIctf.MFA,log.expe2b_FIct_MoySC)
+
+```
+
+```{r}
+### Ajout de l'expertise
+log.expe2b_FIctf.MFA  <- cbind(log.expe2b_FIctf.MFA,expe2b[,"Expertise"])
+```
+
+```{r}
+### Export du fichier
+write.csv(log.expe2b_FIctf.MFA, "Expe22_log_FIc_MFA.csv", row.names = TRUE)
+
+```
+
+
+
+#####################################
+##### Imputation KNN
+
+```{r}
+#### Création du dataset de travail
+
+expe2b_FIb <- select(expe2b_FI, -c(Score_QA3,Expertise,SW2b_QC1,SW2b_QC2,SW2b_QC3,SW2b_QR1, SW2b_QR2,SW2b_QR3,SW2b_QA1,SW2b_QA2,SW2b_QA3))
+
+expe2b_FIb <- expe2b_FIb[-25,]
+
+expertise <- expe2b[,"Expertise"]
+expertise <- expertise[-25]
+
+```
+
+```{r}
+names(expe2b_FIb)
+```
+
+
+
+```{r}
+temp<-expe2b_FIb
+
+
+# on impute les données 
+mydata_knn<-simputation::impute_knn(temp,Xplr_QC1+Xplr_QC2+Xplr_QC3~.)
+
+
+
+# vérification
+colSums(is.na(mydata_knn)) 
+
+
+```
+
+
+
+
+```{r}
+temp2 <- expe2b_FIb[, c("Score_QC1","Xplr_QC1","Xplo_QC1","Req_QC1","Doc_QC1","FOFG_QC1","FOFR_QC1","FOFD_QC1","FOK_QC1","Score_QC2","Xplr_QC2","Xplo_QC2","Req_QC2","Doc_QC2","FOFG_QC2","FOFR_QC2","FOFD_QC2","FOK_QC2","Score_QC3","Xplr_QC3","Xplo_QC3","Req_QC3","Doc_QC3","FOFG_QC3","FOFR_QC3","FOFD_QC3","FOK_QC3","Score_QR1","Xplr_QR1","Xplo_QR1","Req_QR1","Doc_QR1","FOFG_QR1","FOFR_QR1","FOFD_QR1","FOK_QR1","Score_QR2","Xplr_QR2","Xplo_QR2","Req_QR2","Doc_QR2","FOFG_QR2","FOFR_QR2","FOFD_QR2","FOK_QR2","Score_QR3","Xplr_QR3","Xplo_QR3","Req_QR3","Doc_QR3","FOFG_QR3","FOFR_QR3","FOFD_QR3","FOK_QR3","Score_QA1","Xplr_QA1","Xplo_QA1","Req_QA1","Doc_QA1","FOFG_QA1","FOFR_QA1","FOFD_QA1","FOK_QA1","Score_QA2","Xplr_QA2","Xplo_QA2","Req_QA2","Doc_QA2","FOFG_QA2","FOFR_QA2","FOFD_QA2","FOK_QA2","SW2a_QC1","SW2a_QC2","SW2a_QC3","SW2a_QR1","SW2a_QR2","SW2a_QR3","SW2a_QA1","SW2a_QA2")]
+  
+missForest(temp2)
+
+```
+
+```{r}
+ximp
+```
+
+
+```{r}
+temp2$ximp
+
+### Export du fichier
+write.csv(temp2$ximp, "Expe22_logFI2b_Missf.csv", row.names = TRUE)
+
+```
+
+```
+

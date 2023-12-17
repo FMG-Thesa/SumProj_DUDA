@@ -9,3 +9,18 @@ Dans cette cadre universitaire, ces trois études se sont attachées à analyser
 <br>
 </br>
 Les mesures présentées dans les fichiers (expe1.csv, expe2.csv, expe3.csv) doivent ici permettre de tester la validité d’une heuristique décisionnelle nouvelle, approximée par la combinaison du nombre de documents et du taux d’information pertinente, permettant de prédire le temps d’arrêt (ou temps de RI total). Le rôle de la complexité des tâches (en tant que facteur d’incertitude) et de l’expertise (en tant que médiateur probable de l’incertitude) sont également à intégrer dans l’analyse. Les jugements métacognitifs prospectif sur l’activité de RI, FoFD et FoFG (appelé FoF pour feeling-of-findability, D étant la modalité « document » et G la modalité « générale ») ont également été ajoutés, en raison de leur influence sur la planification de l’activité. 
+<br>
+</br>
+#######################################################
+<br>
+</br>
+
+## PURPOSE AND BACKGROUND OF THE THREE STUDIES
+
+These 3 studies represent part of an empirical experiment carried out as part of a research project in cognitive psychology.
+
+Within this academic framework, these three studies set out to analyze the stopping behaviors during an information search (IR) of adolescents in a school situation, considering the effect of variation in the complexity of IR tasks (entropy/uncertainty around results) and the resources provided by prior knowledge (level of expertise) on the search domain. To achieve this, traces of users' actual activity during IR (query formulation/reformulation, SERP results analysis and document selection, regulation of the exploitation-exploration trade-off covering different time measures) and output performance measures (such as the rate of relevant information accumulated) were recorded.
+
+The measures presented in the files (expe1.csv, expe2.csv, expe3.csv) are intended here to test the validity of a novel decision heuristic, approximated by the combination of number of documents and rate of relevant information, for predicting downtime (or total IR time). The role of task complexity (as a factor of uncertainty) and expertise (as a likely mediator of uncertainty) should also be included in the analysis. Forward-looking metacognitive judgments about IR activity, FoFD and FoFG (called FoF for feeling-of-findability, D being the "document" modality and G the "general" modality) were also added, because of their influence on activity planning.
+
+Translated with www.DeepL.com/Translator (free version)
